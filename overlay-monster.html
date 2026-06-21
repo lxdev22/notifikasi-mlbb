@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Overlay Monster</title>
+    <style>
+        body { margin: 0; background: transparent; font-family: 'Arial Black', sans-serif; overflow: hidden; width: 1920px; height: 1080px; display: flex; justify-content: center; align-items: flex-start; }
+        #container { margin-top: 40px; position: relative; }
+        .box { width: 700px; height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; animation: scaleIn 0.25s forwards; }
+        video { width: 100%; height: 100%; object-fit: contain; }
+        .text { position: absolute; bottom: 30px; color: #fff; font-size: 26px; letter-spacing: 2px; text-shadow: 0 0 10px #000; text-transform: uppercase; }
+        .blue { filter: drop-shadow(0 0 20px rgba(0, 225, 255, 0.7)); }
+        .red { filter: drop-shadow(0 0 20px rgba(255, 0, 85, 0.7)); }
+        .neutral { filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.6)); }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <script>
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'mlbb_master_action') {
+                const data = JSON.parse(e.newValue);
+                // Hanya jalankan jika tipenya adalah 'monster'
+                if (data && data.type === 'monster') {
+                    const container = document.getElementById('container');
+                    container.innerHTML = '';
+                    
+                    const el = document.createElement('div');
+                    el.className = `box ${data.team ? data.team : 'neutral'}`;
+                    
+                    let txt = data.team ? `${data.team} TEAM SLAIN THE ${data.event}` : `${data.event} HAS RESPAWNED`;
+                    
+                    el.innerHTML = `<video src="${data.event}.webm" autoplay muted></video><div class="text">${txt}</div>`;
+                    container.appendChild(el);
+                    
+                    setTimeout(() => {
+                        el.style.animation = "fadeOut 0.4s forwards";
+                        setTimeout(() => el.remove(), 400);
+                    }, 5000);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

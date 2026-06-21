@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLBB Draft Pick Overlay v5.1</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+        body { background: transparent; color: white; width: 1920px; height: 1080px; overflow: hidden; position: relative; }
+        
+        /* HEADER SCORE BAR */
+        .top-header {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 1200px; height: 80px;
+            background: linear-gradient(180deg, rgba(15,23,42,0.95) 0%, rgba(30,41,59,0.9) 100%);
+            border: 2px solid #475569; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .team-container { display: flex; align-items: center; gap: 15px; width: 40%; }
+        .team-container.red-team { justify-content: flex-end; text-align: right; }
+        .team-name { font-size: 26px; font-weight: 800; letter-spacing: 1px; }
+        .blue-text { color: #38bdf8; }
+        .red-text { color: #f43f5e; }
+        .score-box { background: #0f172a; border: 1px solid #64748b; padding: 5px 15px; font-size: 24px; font-weight: bold; border-radius: 4px; min-width: 50px; text-align: center; }
+        
+        /* STYLE TAMBAHAN: Logo Tim di Overlay */
+        .team-logo { width: 50px; height: 50px; object-fit: contain; filter: drop-shadow(0px 0px 8px rgba(255,255,255,0.2)); }
+
+        .timer-container {
+            width: 100px; height: 100px; background: #0f172a; border: 4px solid #e2e8f0; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900;
+            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10;
+        }
+        .timer-container.active-blue { border-color: #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.6); }
+        .timer-container.active-red { border-color: #f43f5e; box-shadow: 0 0 25px rgba(244,63,94,0.6); }
+
+        /* PICKS PANEL */
+        .picks-panel { position: absolute; top: 150px; width: 340px; display: flex; flex-direction: column; gap: 15px; }
+        .picks-panel.blue-side { left: 50px; }
+        .picks-panel.red-side { right: 50px; }
+        
+        .pick-card {
+            height: 130px; background: linear-gradient(90deg, rgba(15,23,42,0.85) 0%, rgba(30,41,59,0.7) 100%);
+            border-left: 6px solid #38bdf8; border-radius: 4px; position: relative; overflow: hidden;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.3); transition: all 0.3s ease;
+        }
+        .red-side .pick-card {
+            border-left: none; border-right: 6px solid #f43f5e;
+            background: linear-gradient(-90deg, rgba(15,23,42,0.85) 0%, rgba(30,41,59,0.7) 100%);
+        }
+        
+        /* Konten teks di dalam Card agar selalu di depan gambar */
+        .pick-card-content {
+            position: relative; z-index: 5; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; padding-left: 20px;
+        }
+        .red-side .pick-card-content { padding-left: 0; padding-right: 20px; text-align: right; }
+
+        /* STYLE ANIMASI: Gambar Hero Pick (Slide Up dari Bawah) */
+        .pick-bg-img {
+            position: absolute; top: 100%; left: 0; width: 100%; height: 100%;
+            object-fit: cover; object-position: center top; opacity: 0; z-index: 1;
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s ease;
+        }
+        /* Trigger saat hero terisi */
+        .pick-card.has-hero .pick-bg-img {
+            transform: translateY(-100%); opacity: 0.6; /* Opacity 0.6 agar teks nama pemain tetap terbaca tajam */
+        }
+        
+        .pick-card.active-picking { animation: pulse-border 1.5s infinite alternate; background: rgba(30,41,59,0.95); }
+        @keyframes pulse-border { 0% { box-shadow: 0 0 10px rgba(56,189,248,0.4); } 100% { box-shadow: 0 0 25px rgba(56,189,248,0.8); } }
+        
+        .red-side .pick-card.active-picking { animation: pulse-border-red 1.5s infinite alternate; }
+        @keyframes pulse-border-red { 0% { box-shadow: 0 0 10px rgba(244,63,94,0.4); } 100% { box-shadow: 0 0 25px rgba(244,63,94,0.8); } }
+
+        .hero-name-display { font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 2px 4px rgba(0,0,0,0.9); }
+        .player-name-display { font-size: 14px; font-weight: 600; text-transform: uppercase; margin-top: 4px; letter-spacing: 0.5px; }
+        .blue-side .player-name-display { color: #bae6fd; }
+        .red-side .player-name-display { color: #fecdd3; }
+
+        /* BANS FOOTER */
+        .bans-footer {
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 1000px; height: 70px;
+            background: rgba(15,23,42,0.9); border-radius: 6px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; padding: 0 30px;
+        }
+        .ban-group { display: flex; gap: 10px; align-items: center; }
+        
+        .ban-box {
+            width: 50px; height: 50px; background: #1e293b; border: 2px solid #ef4444; border-radius: 4px;
+            position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .blue-ban { border-color: #3b82f6; }
+
+        .ban-text { position: relative; z-index: 5; font-size: 10px; font-weight: bold; color: #94a3b8; text-transform: uppercase; text-shadow: 0 1px 3px rgba(0,0,0,1); }
+        
+        /* STYLE ANIMASI: Gambar Hero Ban (Fade In Perlahan) */
+        .ban-img {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; opacity: 0; z-index: 1; filter: grayscale(100%) brightness(0.5); /* Membuat efek gelap/hitam-putih khas Ban */
+            transition: opacity 0.8s ease-in-out;
+        }
+        /* Trigger saat ban terisi */
+        .ban-box.has-hero .ban-img { opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <div class="top-header">
+        <div class="team-container blue-team">
+            <img id="viewBlueLogo" class="team-logo" src="" alt="" style="display: none;">
+            <span class="team-name blue-text" id="viewBlueName">TEAM BLUE</span>
+            <div class="score-box" id="viewBlueScore">0</div>
+        </div>
+        <div class="timer-container" id="timerDisplay">30</div>
+        <div class="team-container red-team">
+            <div class="score-box" id="viewRedScore">0</div>
+            <span class="team-name red-text" id="viewRedName">TEAM RED</span>
+            <img id="viewRedLogo" class="team-logo" src="" alt="" style="display: none;">
+        </div>
+    </div>
+
+    <div class="picks-panel blue-side">
+        <div class="pick-card" id="blue_p_card_0"><div class="pick-card-content"><span class="hero-name-display" id="blue_p_text_0">-</span><span class="player-name-display" id="blue_player_text_0">PEMAIN 1</span></div><img class="pick-bg-img" id="blue_p_img_0" src="" alt=""></div>
+        <div class="pick-card" id="blue_p_card_1"><div class="pick-card-content"><span class="hero-name-display" id="blue_p_text_1">-</span><span class="player-name-display" id="blue_player_text_1">PEMAIN 2</span></div><img class="pick-bg-img" id="blue_p_img_1" src="" alt=""></div>
+        <div class="pick-card" id="blue_p_card_2"><div class="pick-card-content"><span class="hero-name-display" id="blue_p_text_2">-</span><span class="player-name-display" id="blue_player_text_2">PEMAIN 3</span></div><img class="pick-bg-img" id="blue_p_img_2" src="" alt=""></div>
+        <div class="pick-card" id="blue_p_card_3"><div class="pick-card-content"><span class="hero-name-display" id="blue_p_text_3">-</span><span class="player-name-display" id="blue_player_text_3">PEMAIN 4</span></div><img class="pick-bg-img" id="blue_p_img_3" src="" alt=""></div>
+        <div class="pick-card" id="blue_p_card_4"><div class="pick-card-content"><span class="hero-name-display" id="blue_p_text_4">-</span><span class="player-name-display" id="blue_player_text_4">PEMAIN 5</span></div><img class="pick-bg-img" id="blue_p_img_4" src="" alt=""></div>
+    </div>
+
+    <div class="picks-panel red-side">
+        <div class="pick-card" id="red_p_card_0"><div class="pick-card-content"><span class="hero-name-display" id="red_p_text_0">-</span><span class="player-name-display" id="red_player_text_0">PEMAIN 1</span></div><img class="pick-bg-img" id="red_p_img_0" src="" alt=""></div>
+        <div class="pick-card" id="red_p_card_1"><div class="pick-card-content"><span class="hero-name-display" id="red_p_text_1">-</span><span class="player-name-display" id="red_player_text_1">PEMAIN 2</span></div><img class="pick-bg-img" id="red_p_img_1" src="" alt=""></div>
+        <div class="pick-card" id="red_p_card_2"><div class="pick-card-content"><span class="hero-name-display" id="red_p_text_2">-</span><span class="player-name-display" id="red_player_text_2">PEMAIN 3</span></div><img class="pick-bg-img" id="red_p_img_2" src="" alt=""></div>
+        <div class="pick-card" id="red_p_card_3"><div class="pick-card-content"><span class="hero-name-display" id="red_p_text_3">-</span><span class="player-name-display" id="red_player_text_3">PEMAIN 4</span></div><img class="pick-bg-img" id="red_p_img_3" src="" alt=""></div>
+        <div class="pick-card" id="red_p_card_4"><div class="pick-card-content"><span class="hero-name-display" id="red_p_text_4">-</span><span class="player-name-display" id="red_player_text_4">PEMAIN 5</span></div><img class="pick-bg-img" id="red_p_img_4" src="" alt=""></div>
+    </div>
+
+    <div class="bans-footer">
+        <div class="ban-group">
+            <span style="font-size:12px; color:#38bdf8; font-weight:bold; margin-right:10px;">BLUE BANS</span>
+            <div class="ban-box blue-ban" id="blue_b_box_0"><span class="ban-text" id="blue_b_text_0">-</span><img class="ban-img" id="blue_b_img_0" src="" alt=""></div>
+            <div class="ban-box blue-ban" id="blue_b_box_1"><span class="ban-text" id="blue_b_text_1">-</span><img class="ban-img" id="blue_b_img_1" src="" alt=""></div>
+            <div class="ban-box blue-ban" id="blue_b_box_2"><span class="ban-text" id="blue_b_text_2">-</span><img class="ban-img" id="blue_b_img_2" src="" alt=""></div>
+            <div class="ban-box blue-ban" id="blue_b_box_3"><span class="ban-text" id="blue_b_text_3">-</span><img class="ban-img" id="blue_b_img_3" src="" alt=""></div>
+            <div class="ban-box blue-ban" id="blue_b_box_4"><span class="ban-text" id="blue_b_text_4">-</span><img class="ban-img" id="blue_b_img_4" src="" alt=""></div>
+        </div>
+        <div class="ban-group">
+            <span style="font-size:12px; color:#f43f5e; font-weight:bold; margin-left:10px; order:2;">RED BANS</span>
+            <div class="ban-box" id="red_b_box_0" style="order:1;"><span class="ban-text" id="red_b_text_0">-</span><img class="ban-img" id="red_b_img_0" src="" alt=""></div>
+            <div class="ban-box" id="red_b_box_1" style="order:1;"><span class="ban-text" id="red_b_text_1">-</span><img class="ban-img" id="red_b_img_1" src="" alt=""></div>
+            <div class="ban-box" id="red_b_box_2" style="order:1;"><span class="ban-text" id="red_b_text_2">-</span><img class="ban-img" id="red_b_img_2" src="" alt=""></div>
+            <div class="ban-box" id="red_b_box_3" style="order:1;"><span class="ban-text" id="red_b_text_3">-</span><img class="ban-img" id="red_b_img_3" src="" alt=""></div>
+            <div class="ban-box" id="red_b_box_4" style="order:1;"><span class="ban-text" id="red_b_text_4">-</span><img class="ban-img" id="red_b_img_4" src="" alt=""></div>
+        </div>
+    </div>
+
+    <script>
+        // ================= CONFIGURASI GITHUB PAGES =================
+        // Menggunakan link repositori aset milik lxdev22 langsung ke root utama
+        const GITHUB_PAGES_URL = "https://lxdev22.github.io/mlbb-assets/"; 
+        // ============================================================
+
+        const bc = new BroadcastChannel('mlbb_draft_channel');
+
+        bc.onmessage = function(event) {
+            const { type, data } = event.data;
+            if (type === 'STATE_UPDATE') {
+                updateOverlayView(data);
+            } else if (type === 'TIMER_UPDATE') {
+                document.getElementById('timerDisplay').innerText = data;
+            } else if (type === 'ACTIVE_TARGET') {
+                highlightActiveSlot(data);
+            }
+        };
+
+        function updateOverlayView(state) {
+            document.getElementById('viewBlueName').innerText = state.teamBlue.name;
+            document.getElementById('viewBlueScore').innerText = state.teamBlue.score;
+            document.getElementById('viewRedName').innerText = state.teamRed.name;
+            document.getElementById('viewRedScore').innerText = state.teamRed.score;
+            
+            const blueLogo = document.getElementById('viewBlueLogo');
+            if (state.teamBlue.logo) { blueLogo.src = state.teamBlue.logo; blueLogo.style.display = 'block'; } 
+            else { blueLogo.style.display = 'none'; }
+
+            const redLogo = document.getElementById('viewRedLogo');
+            if (state.teamRed.logo) { redLogo.src = state.teamRed.logo; redLogo.style.display = 'block'; } 
+            else { redLogo.style.display = 'none'; }
+
+            for(let i=0; i<5; i++) {
+                const bPickName = state.teamBlue.picks[i] || '';
+                document.getElementById(`blue_p_text_${i}`).innerText = bPickName || '-';
+                document.getElementById(`blue_player_text_${i}`).innerText = state.teamBlue.players[i] || `PEMAIN ${i+1}`;
+                handleImageAnimation('blue_p_card_', 'blue_p_img_', i, bPickName);
+
+                const rPickName = state.teamRed.picks[i] || '';
+                document.getElementById(`red_p_text_${i}`).innerText = rPickName || '-';
+                document.getElementById(`red_player_text_${i}`).innerText = state.teamRed.players[i] || `PEMAIN ${i+1}`;
+                handleImageAnimation('red_p_card_', 'red_p_img_', i, rPickName);
+                
+                const bBanName = state.teamBlue.bans[i] || '';
+                document.getElementById(`blue_b_text_${i}`).innerText = bBanName || '-';
+                handleImageAnimation('blue_b_box_', 'blue_b_img_', i, bBanName);
+
+                const rBanName = state.teamRed.bans[i] || '';
+                document.getElementById(`red_b_text_${i}`).innerText = rBanName || '-';
+                handleImageAnimation('red_b_box_', 'red_b_img_', i, rBanName);
+            }
+        }
+
+        function handleImageAnimation(containerPrefix, imgPrefix, index, heroName) {
+            const container = document.getElementById(`${containerPrefix}${index}`);
+            const img = document.getElementById(`${imgPrefix}${index}`);
+            const currentHeroAttr = img.getAttribute('data-hero') || '';
+
+            if (currentHeroAttr !== heroName) {
+                img.setAttribute('data-hero', heroName);
+                
+                if (heroName && heroName !== '-') {
+                    // encodeURIComponent dipasang di sini untuk mengamankan spasi/karakter spesial di URL
+                    const safeHeroName = encodeURIComponent(heroName);
+                    // Bagian 'heroes/' telah dihapus karena gambar berada di root repositori
+                    img.src = `${GITHUB_PAGES_URL}${safeHeroName}.png`; 
+                    
+                    container.classList.remove('has-hero');
+                    void container.offsetWidth; 
+                    container.classList.add('has-hero');
+                } else {
+                    img.src = '';
+                    container.classList.remove('has-hero');
+                }
+            }
+        }
+
+        function highlightActiveSlot(activeSlot) {
+            document.querySelectorAll('.pick-card').forEach(card => card.classList.remove('active-picking'));
+            const timerContainer = document.getElementById('timerDisplay');
+            timerContainer.classList.remove('active-blue', 'active-red');
+
+            if (activeSlot && activeSlot.team) {
+                if (activeSlot.type === 'pick') {
+                    const cardId = `${activeSlot.team}_p_card_${activeSlot.index}`;
+                    const targetCard = document.getElementById(cardId);
+                    if (targetCard) targetCard.classList.add('active-picking');
+                }
+                timerContainer.classList.add(activeSlot.team === 'blue' ? 'active-blue' : 'active-red');
+            }
+        }
+        
+        const initialSaved = localStorage.getItem('mlbb_draft_state_v5');
+        if (initialSaved) updateOverlayView(JSON.parse(initialSaved));
+    </script>
+</body>
+</html>

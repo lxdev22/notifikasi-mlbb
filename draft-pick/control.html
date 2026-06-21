@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLBB Draft Pick Control Panel v5.1</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #0f172a; color: #e2e8f0; padding: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 2px solid #1e293b; margin-bottom: 20px; }
+        h1 { color: #38bdf8; font-size: 24px; }
+        .status { padding: 6px 12px; background: #1e293b; border-radius: 4px; font-size: 14px; border: 1px solid #334155; }
+        .status.connected { color: #4ade80; border-color: #22c55e; }
+        
+        .grid-container { display: grid; grid-template-columns: 1fr 1.8fr 1.2fr; gap: 20px; }
+        @media (max-width: 1300px) { .grid-container { grid-template-columns: 1fr; } }
+        
+        .card { background: #1e293b; border-radius: 8px; padding: 20px; border: 1px solid #334155; height: fit-content; }
+        .card h2 { font-size: 18px; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 8px; color: #f1f5f9; }
+        
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-size: 12px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px 12px; background: #0f172a; border: 1px solid #475569; border-radius: 4px; color: white; font-size: 14px; }
+        input:focus, select:focus { border-color: #38bdf8; outline: none; }
+        
+        .logo-upload-container { display: flex; gap: 10px; align-items: center; }
+        .logo-preview { width: 40px; height: 40px; object-fit: contain; background: #0f172a; border: 1px dashed #475569; border-radius: 4px; display: none; }
+        
+        .btn { display: inline-block; padding: 8px 16px; font-weight: 600; font-size: 14px; border-radius: 4px; cursor: pointer; border: none; text-align: center; width: 100%; margin-bottom: 8px; transition: all 0.2s; }
+        .btn-primary { background: #0284c7; color: white; }
+        .btn-primary:hover { background: #0369a1; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-success { background: #22c55e; color: white; }
+        .btn-success:hover { background: #16a34a; }
+        .btn-secondary { background: #475569; color: white; }
+        .btn-secondary:hover { background: #334155; }
+        
+        /* STYLE TERBARU: Grid Hero dengan Tampilan Gambar Visual */
+        .hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 8px; max-height: 550px; overflow-y: auto; padding-right: 5px; }
+        .hero-item { 
+            background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 6px; 
+            text-align: center; font-size: 11px; cursor: pointer; transition: transform 0.1s, border-color 0.1s;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+        }
+        .hero-item:hover { border-color: #38bdf8; transform: scale(1.04); background: #1e293b; }
+        .hero-item img { width: 55px; height: 55px; object-fit: cover; border-radius: 4px; background: #1e293b; border: 1px solid #475569; }
+        .hero-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
+
+        .team-slots { padding: 12px; border-radius: 6px; background: #0f172a; border-left: 4px solid #3b82f6; margin-bottom: 15px; }
+        .team-slots.red { border-left-color: #ef4444; }
+        .slot-row { display: flex; flex-direction: column; background: #1e293b; padding: 8px; border-radius: 4px; margin-bottom: 8px; border: 1px solid #334155; }
+        .slot-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .slot-controls { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+        
+        .slot-badge { padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; background: #334155; text-align: center; }
+        .slot-badge.ban { background: #7f1d1d; color: #fca5a5; }
+        .slot-badge.pick { background: #1e3a8a; color: #93c5fd; }
+        .team-slots.red .slot-badge.pick { background: #741b47; color: #f472b6; }
+        
+        .player-input-style { padding: 4px 8px; font-size: 12px; background: #0f172a; border: 1px solid #475569; border-radius: 4px; color: white; width: 130px; flex-grow: 1; }
+        .swap-select-style { padding: 4px; font-size: 12px; background: #334155; border: 1px solid #475569; color: white; border-radius: 3px; width: 110px; cursor: pointer; }
+        
+        .active-target { background: #1e293b; border: 2px dashed #38bdf8; padding: 10px; border-radius: 6px; margin-bottom: 15px; text-align: center; }
+        .timer-controls { display: flex; gap: 8px; margin-top: 8px; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>MLBB Draft Pick Hub v5.1</h1>
+            <p style="font-size: 12px; color: #64748b;">Input Nama Pemain, Switch Hero & Upload Logo Real-time</p>
+        </div>
+        <div class="status connected">Broadcast Active</div>
+    </header>
+
+    <div class="grid-container">
+        <!-- LEFT: SETTINGS -->
+        <div class="card">
+            <h2>Pengaturan Pertandingan</h2>
+            <div class="form-group">
+                <label>Nama Team Biru (Kiri)</label>
+                <input type="text" id="teamBlueName" value="TEAM BLUE" oninput="updateState()">
+            </div>
+            <div class="form-group">
+                <label>Logo Team Biru</label>
+                <div class="logo-upload-container">
+                    <input type="file" id="teamBlueLogo" accept="image/*" onchange="uploadLogo('blue', event)">
+                    <img id="blueLogoPreview" class="logo-preview" alt="Preview Blue">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Skor Team Biru</label>
+                <input type="number" id="teamBlueScore" value="0" min="0" oninput="updateState()">
+            </div>
+            <br>
+            <div class="form-group">
+                <label>Nama Team Merah (Kanan)</label>
+                <input type="text" id="teamRedName" value="TEAM RED" oninput="updateState()">
+            </div>
+            <div class="form-group">
+                <label>Logo Team Merah</label>
+                <div class="logo-upload-container">
+                    <input type="file" id="teamRedLogo" accept="image/*" onchange="uploadLogo('red', event)">
+                    <img id="redLogoPreview" class="logo-preview" alt="Preview Red">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Skor Team Merah</label>
+                <input type="number" id="teamRedScore" value="0" min="0" oninput="updateState()">
+            </div>
+            
+            <h2 style="margin-top: 25px;">Timer</h2>
+            <div class="form-group">
+                <label>Durasi Detik</label>
+                <input type="number" id="timerInput" value="30" min="0">
+            </div>
+            <div class="timer-controls">
+                <button class="btn btn-success" onclick="startTimer()">Start</button>
+                <button class="btn btn-danger" onclick="stopTimer()">Pause</button>
+                <button class="btn btn-secondary" onclick="resetTimer()">Reset</button>
+            </div>
+            
+            <button class="btn btn-danger" style="margin-top: 30px;" onclick="resetFullDraft()">Reset Semua Draft</button>
+        </div>
+
+        <!-- CENTER: HERO SELECTOR -->
+        <div class="card">
+            <h2>Pilih Hero & Alokasikan Slot</h2>
+            <div class="active-target">
+                <span style="font-size: 12px; color: #94a3b8; display:block;">Target Slot Aktif:</span>
+                <strong id="activeTargetDisplay" style="color: #38bdf8; font-size: 16px;">Silakan Pilih Slot di Kanan</strong>
+            </div>
+            <div class="form-group">
+                <input type="text" id="heroSearch" placeholder="Cari Nama Hero..." oninput="filterHeroes()">
+            </div>
+            <div class="hero-grid" id="heroGrid"></div>
+        </div>
+
+        <!-- RIGHT: SLOT MANAGER -->
+        <div class="card">
+            <h2>Daftar Slot Draft Pick</h2>
+            
+            <!-- BLUE TEAM -->
+            <div class="team-slots">
+                <h3 style="font-size: 14px; margin-bottom: 8px; color: #3b82f6;">Slot Team Biru</h3>
+                <p style="font-size: 11px; color:#94a3b8; margin-bottom: 4px;">BANS</p>
+                <div id="blueBansContainer"></div>
+                
+                <p style="font-size: 11px; color:#94a3b8; margin: 12px 0 4px 0;">PICKS & PLAYERS</p>
+                <div id="bluePicksContainer"></div>
+            </div>
+
+            <!-- RED TEAM -->
+            <div class="team-slots red">
+                <h3 style="font-size: 14px; margin-bottom: 8px; color: #ef4444;">Slot Team Merah</h3>
+                <p style="font-size: 11px; color:#94a3b8; margin-bottom: 4px;">BANS</p>
+                <div id="redBansContainer"></div>
+                
+                <p style="font-size: 11px; color:#94a3b8; margin: 12px 0 4px 0;">PICKS & PLAYERS</p>
+                <div id="redPicksContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================= CONFIGURASI GITHUB PAGES =================
+        // SILAKAN GANTI URL DI BAWAH INI DENGAN URL GITHUB PAGES ANDA! (Wajib diakhiri tanda /)
+        // Contoh: "https://usernamekamu.github.io/nama-repo/"
+        const GITHUB_PAGES_URL = "./"; 
+        // ============================================================
+
+        const bc = new BroadcastChannel('mlbb_draft_channel');
+        const heroesList = ["Aamon", "Akai", "Aldous", "Alice", "Alpha", "Alucard", "Angela", "Argus", "Arlott", "Atlas", "Aurora", "Badang", "Balmond", "Baxia", "Beatrix", "Belerick", "Benedetta", "Brody", "Bruno", "Cici", "Carmilla", "Cecilion", "Chang'e", "Chou", "Clint", "Claude", "Cyclops", "Diggie", "Dyrroth", "Edith", "Esmeralda", "Estes", "Eudora", "Fanny", "Faramis", "Floryn", "Franco", "Freya", "Gatotkaca", "Gloo", "Gord", "Granger", "Grock", "Gusion", "Hanabi", "Hanzo", "Harith", "Harley", "Hayabusa", "Helcurt", "Hylos", "Ixia", "Jawhead", "Johnson", "Joy", "Kadita", "Kaja", "Karina", "Karrie", "Khaleed", "Khufra", "Kimmy", "Lancelot", "Lapu-Lapu", "Layla", "Leomord", "Lesley", "Ling", "Lolita", "Lunox", "Luo Yi", "Martis", "Masha", "Mathilda", "Minotaur", "Minsitthar", "Miya", "Moskov", "Nana", "Natan", "Natalia", "Nolan", "Novaria", "Odette", "Paquito", "Pharsa", "Phoveus", "Popol & Kupa", "Rafaela", "Roger", "Ruby", "Saber", "Selena", "Silvanna", "Sun", "Terizla", "Thamuz", "Tigreal", "Uranus", "Vale", "Valentina", "Valir", "Vexana", "Wanwan", "X.Borg", "Xavier", "Yin", "Yve", "Zilong", "Zhask"];
+        
+        let state = {
+            teamBlue: { name: "TEAM BLUE", score: 0, logo: "", bans: ["","","","",""], picks: ["","","","",""], players: ["Pemain 1","Pemain 2","Pemain 3","Pemain 4","Pemain 5"] },
+            teamRed: { name: "TEAM RED", score: 0, logo: "", bans: ["","","","",""], picks: ["","","","",""], players: ["Pemain 1","Pemain 2","Pemain 3","Pemain 4","Pemain 5"] },
+            timer: 30,
+            activeSlot: { team: null, type: null, index: null }
+        };
+
+        let timerInterval = null;
+
+        function init() {
+            renderHeroes(heroesList);
+            const savedState = localStorage.getItem('mlbb_draft_state_v5');
+            if (savedState) {
+                state = JSON.parse(savedState);
+                document.getElementById('teamBlueName').value = state.teamBlue.name;
+                document.getElementById('teamBlueScore').value = state.teamBlue.score;
+                document.getElementById('teamRedName').value = state.teamRed.name;
+                document.getElementById('teamRedScore').value = state.teamRed.score;
+            }
+            renderSlotsHTML();
+            updateUIValues();
+        }
+
+        // UPDATE: Render daftar hero lengkap dengan gambar otomatis dari GitHub Pages
+        function renderHeroes(list) {
+            const grid = document.getElementById('heroGrid');
+            grid.innerHTML = '';
+            list.forEach(hero => {
+                const item = document.createElement('div');
+                item.className = 'hero-item';
+                
+                const safeHeroName = encodeURIComponent(hero);
+                item.innerHTML = `
+                    <img src="${GITHUB_PAGES_URL}${safeHeroName}.png" onerror="this.src='https://via.placeholder.com/55?text=?';">
+                    <span>${hero}</span>
+                `;
+                item.onclick = () => assignHero(hero);
+                grid.appendChild(item);
+            });
+        }
+
+        function filterHeroes() {
+            const query = document.getElementById('heroSearch').value.toLowerCase();
+            const filtered = heroesList.filter(h => h.toLowerCase().includes(query));
+            renderHeroes(filtered);
+        }
+
+        function renderSlotsHTML() {
+            const teams = ['blue', 'red'];
+            teams.forEach(t => {
+                const banCon = document.getElementById(`${t}BansContainer`);
+                banCon.innerHTML = '';
+                for(let i=0; i<5; i++) {
+                    banCon.innerHTML += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:12px;">
+                            <div><span class="slot-badge ban">BAN ${i+1}</span> <span id="${t}_b_text_${i}">-</span></div>
+                            <button class="btn btn-secondary" style="width:auto; padding:2px 6px; font-size:11px; margin:0;" onclick="selectSlot('${t}', 'ban', ${i})">Select</button>
+                        </div>`;
+                }
+
+                const pickCon = document.getElementById(`${t}PicksContainer`);
+                pickCon.innerHTML = '';
+                for(let i=0; i<5; i++) {
+                    pickCon.innerHTML += `
+                        <div class="slot-row">
+                            <div class="slot-header">
+                                <div><span class="slot-badge pick">SLOT ${i+1}</span> <strong id="${t}_p_text_${i}">-</strong></div>
+                                <button class="btn btn-secondary" style="width:auto; padding:2px 6px; font-size:11px; margin:0;" onclick="selectSlot('${t}', 'pick', ${i})">Select</button>
+                            </div>
+                            <div class="slot-controls">
+                                <input type="text" class="player-input-style" id="${t}_player_input_${i}" value="${state['team'+t.charAt(0).toUpperCase()+t.slice(1)].players[i]}" placeholder="Nama Pemain" oninput="updatePlayerName('${t}', ${i})">
+                                <select class="swap-select-style" onchange="swapHeroEvent('${t}', ${i}, this)">
+                                    <option value="">🔄 Switch</option>
+                                    <option value="0">Slot 1</option>
+                                    <option value="1">Slot 2</option>
+                                    <option value="2">Slot 3</option>
+                                    <option value="3">Slot 4</option>
+                                    <option value="4">Slot 5</option>
+                                </select>
+                            </div>
+                        </div>`;
+                }
+            });
+        }
+
+        function selectSlot(team, type, index) {
+            state.activeSlot = { team, type, index };
+            const teamName = team === 'blue' ? state.teamBlue.name : state.teamRed.name;
+            document.getElementById('activeTargetDisplay').innerText = `${teamName.toUpperCase()} - ${type.toUpperCase()} ${index + 1}`;
+            bc.postMessage({ type: 'ACTIVE_TARGET', data: state.activeSlot });
+        }
+
+        function assignHero(heroName) {
+            if (!state.activeSlot.team) {
+                alert("Silakan pilih target slot terlebih dahulu!");
+                return;
+            }
+            const { team, type, index } = state.activeSlot;
+            const teamKey = team === 'blue' ? 'teamBlue' : 'teamRed';
+            state[teamKey][type + 's'][index] = heroName;
+            
+            updateUIValues();
+            updateState();
+        }
+
+        function updatePlayerName(team, index) {
+            const teamKey = team === 'blue' ? 'teamBlue' : 'teamRed';
+            const val = document.getElementById(`${team}_player_input_${index}`).value;
+            state[teamKey].players[index] = val;
+            updateState();
+        }
+
+        function uploadLogo(team, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64String = e.target.result;
+                const teamKey = team === 'blue' ? 'teamBlue' : 'teamRed';
+                
+                state[teamKey].logo = base64String;
+                
+                const previewImg = document.getElementById(`${team}LogoPreview`);
+                previewImg.src = base64String;
+                previewImg.style.display = 'block';
+                
+                updateState();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function swapHeroEvent(team, fromIdx, selectEl) {
+            const toIdx = selectEl.value;
+            if(toIdx === "" || toIdx == fromIdx) return;
+            
+            const teamKey = team === 'blue' ? 'teamBlue' : 'teamRed';
+            
+            let tempHero = state[teamKey].picks[fromIdx];
+            state[teamKey].picks[fromIdx] = state[teamKey].picks[toIdx];
+            state[teamKey].picks[toIdx] = tempHero;
+            
+            selectEl.value = ""; 
+            updateUIValues();
+            updateState();
+        }
+
+        function updateUIValues() {
+            const teams = ['blue', 'red'];
+            teams.forEach(t => {
+                const teamKey = t === 'blue' ? 'teamBlue' : 'teamRed';
+                for(let i=0; i<5; i++) {
+                    document.getElementById(`${t}_b_text_${i}`).innerText = state[teamKey].bans[i] || '-';
+                    document.getElementById(`${t}_p_text_${i}`).innerText = state[teamKey].picks[i] || '-';
+                    document.getElementById(`${t}_player_input_${i}`).value = state[teamKey].players[i] || '';
+                }
+
+                const previewImg = document.getElementById(`${t}LogoPreview`);
+                if (state[teamKey].logo) {
+                    previewImg.src = state[teamKey].logo;
+                    previewImg.style.display = 'block';
+                } else {
+                    previewImg.style.display = 'none';
+                }
+            });
+        }
+
+        function updateState() {
+            state.teamBlue.name = document.getElementById('teamBlueName').value;
+            state.teamBlue.score = parseInt(document.getElementById('teamBlueScore').value) || 0;
+            state.teamRed.name = document.getElementById('teamRedName').value;
+            state.teamRed.score = parseInt(document.getElementById('teamRedScore').value) || 0;
+            
+            localStorage.setItem('mlbb_draft_state_v5', JSON.stringify(state));
+            bc.postMessage({ type: 'STATE_UPDATE', data: state });
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            state.timer = parseInt(document.getElementById('timerInput').value) || 30;
+            bc.postMessage({ type: 'TIMER_UPDATE', data: state.timer });
+            timerInterval = setInterval(() => {
+                if (state.timer > 0) {
+                    state.timer--;
+                    document.getElementById('timerInput').value = state.timer;
+                    bc.postMessage({ type: 'TIMER_UPDATE', data: state.timer });
+                } else {
+                    clearInterval(timerInterval);
+                }
+            }, 1000);
+        }
+
+        function stopTimer() { clearInterval(timerInterval); }
+        function resetTimer() {
+            clearInterval(timerInterval);
+            state.timer = 30;
+            document.getElementById('timerInput').value = 30;
+            bc.postMessage({ type: 'TIMER_UPDATE', data: state.timer });
+        }
+
+        function resetFullDraft() {
+            if(confirm("Reset semua draft, nama pemain, dan logo?")) {
+                state.teamBlue.bans = ["","","","",""]; state.teamBlue.picks = ["","","","",""];
+                state.teamRed.bans = ["","","","",""]; state.teamRed.picks = ["","","","",""];
+                state.teamBlue.players = ["Pemain 1","Pemain 2","Pemain 3","Pemain 4","Pemain 5"];
+                state.teamRed.players = ["Pemain 1","Pemain 2","Pemain 3","Pemain 4","Pemain 5"];
+                state.teamBlue.logo = ""; state.teamRed.logo = "";
+                document.getElementById('teamBlueLogo').value = "";
+                document.getElementById('teamRedLogo').value = "";
+                resetTimer(); updateUIValues(); updateState();
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
