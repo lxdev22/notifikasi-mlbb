@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRISM Overlay</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: transparent; 
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #overlay-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        video {
+            display: none; 
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay-container">
+        <video id="alert-video" autoplay playsinline></video>
+    </div>
+
+<script>
+    const bc = new BroadcastChannel('prism_alerts');
+    const videoElement = document.getElementById('alert-video');
+
+    bc.onmessage = (event) => {
+        if (event.data.action === 'play') {
+            playAlert(event.data.type);
+        }
+    };
+
+    function playAlert(type) {
+        videoElement.pause();
+        videoElement.currentTime = 0;
+        
+        videoElement.onloadedmetadata = () => {
+            videoElement.play().catch(error => {
+                console.log("Gagal memutar otomatis:", error);
+            });
+        };
+        
+        // Memanggil file MP4 sesuai nama trigger
+        videoElement.src = `${type}.mp4`;
+        
+        videoElement.style.display = 'block';
+        videoElement.load();
+    }
+
+    videoElement.onended = () => {
+        videoElement.style.display = 'none';
+        videoElement.src = ''; 
+    };
+</script>
+
+</body>
+</html>
